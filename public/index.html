@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kimmane Monthly Medal Leaderboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header__content">
+        <div class="brand">
+          <span class="brand__label">Kimmane Golf Terrain</span>
+          <span class="brand__title">Monthly Medal Leaderboard</span>
+        </div>
+        <nav class="header__nav">
+          <a class="nav-link" href="https://www.kimmaneresorts.com/" target="_blank" rel="noreferrer">
+            Resort Website
+          </a>
+          <a class="btn btn--ghost" href="/admin">Admin Login</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container hero__content">
+          <p class="eyebrow">First Sunday every month</p>
+          <h1>Celebrate the champions of Kimmane's medal matches</h1>
+          <p>
+            Points are awarded to the top three golfers in Net Stroke Play and
+            Stable Ford. Track the race for Golfer of the Year throughout the
+            season.
+          </p>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container card-grid">
+          <div class="card">
+            <h2>Points Rules</h2>
+            <ul class="rules">
+              <li>Monthly medal match held on the first Sunday.</li>
+              <li>Two categories: Net Stroke Play and Stable Ford.</li>
+              <li>Points per category: 1st = 3, 2nd = 2, 3rd = 1.</li>
+              <li>Total points across both categories decide Golfer of the Year.</li>
+            </ul>
+          </div>
+          <div class="card highlight-card">
+            <h2>Golfer of the Year (Current)</h2>
+            <p id="leader-name" class="leader-name">No results yet</p>
+            <p id="leader-points" class="leader-points">0 points</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container card">
+          <div class="card__header">
+            <div>
+              <h2>Leaderboard</h2>
+              <p class="muted">Updated automatically from the official results.</p>
+            </div>
+            <label class="filter">
+              <span>Year</span>
+              <select id="year-filter"></select>
+            </label>
+          </div>
+          <div class="tables-grid">
+            <div>
+              <h3>Overall Points</h3>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Player</th>
+                    <th>Points</th>
+                  </tr>
+                </thead>
+                <tbody id="overall-table"></tbody>
+              </table>
+            </div>
+            <div>
+              <h3>Net Stroke Play</h3>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Player</th>
+                    <th>Points</th>
+                  </tr>
+                </thead>
+                <tbody id="net-table"></tbody>
+              </table>
+            </div>
+            <div>
+              <h3>Stable Ford</h3>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Player</th>
+                    <th>Points</th>
+                  </tr>
+                </thead>
+                <tbody id="stable-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container card">
+          <div class="card__header">
+            <div>
+              <h2>Monthly Results</h2>
+              <p class="muted">Published by the tournament committee.</p>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Category</th>
+                  <th>1st</th>
+                  <th>2nd</th>
+                  <th>3rd</th>
+                </tr>
+              </thead>
+              <tbody id="events-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <p>Powered by the Kimmane Golf Terrain monthly medal committee.</p>
+      </div>
+    </footer>
+
+    <script src="/public.js"></script>
+  </body>
+</html>

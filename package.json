@@ -1,0 +1,28 @@
+{
+  "name": "kimmane-leaderboard",
+  "version": "1.0.0",
+  "description": "Manage the leaderboard for Kimmane Monthly Medal Match.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shashankel/kimmane-leaderboard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/shashankel/kimmane-leaderboard/issues"
+  },
+  "homepage": "https://github.com/shashankel/kimmane-leaderboard#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.6.2",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3"
+  }
+}

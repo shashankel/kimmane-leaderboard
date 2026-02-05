@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kimmane Leaderboard Admin</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header__content">
+        <div class="brand">
+          <span class="brand__label">Kimmane Golf Terrain</span>
+          <span class="brand__title">Leaderboard Admin</span>
+        </div>
+        <nav class="header__nav">
+          <a class="btn btn--ghost" href="/">View Public Leaderboard</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="section">
+        <div class="container card" id="login-card">
+          <h2>Admin Login</h2>
+          <p class="muted">
+            Only authorised committee members can update the leaderboard.
+          </p>
+          <form id="login-form" class="form">
+            <div class="form__grid">
+              <label class="form__field">
+                <span>Username</span>
+                <input id="username-input" name="username" autocomplete="username" />
+              </label>
+              <label class="form__field">
+                <span>Password</span>
+                <input
+                  id="password-input"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                />
+              </label>
+            </div>
+            <div class="form__actions">
+              <button class="btn btn--primary" type="submit">Sign in</button>
+              <p id="login-error" class="form__error" role="alert"></p>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="section hidden" id="admin-panel">
+        <div class="container">
+          <div class="card panel-header">
+            <div>
+              <h2>Welcome, committee admin</h2>
+              <p class="muted">Manage monthly medal results and leaderboard.</p>
+            </div>
+            <button class="btn btn--ghost" id="logout-button">Log out</button>
+          </div>
+
+          <div class="card section-spacer">
+            <div class="card__header">
+              <div>
+                <h3>Add Monthly Results</h3>
+                <p class="muted">Enter the top three placements per category.</p>
+              </div>
+              <label class="filter">
+                <span>Year</span>
+                <select id="year-filter"></select>
+              </label>
+            </div>
+            <form id="event-form" class="form">
+              <div class="form__grid">
+                <label class="form__field">
+                  <span>Month</span>
+                  <input id="month-input" name="month" type="month" required />
+                </label>
+                <label class="form__field">
+                  <span>Category</span>
+                  <select id="category-input" name="category" required>
+                    <option value="">Select category</option>
+                    <option value="Net Stroke Play">Net Stroke Play</option>
+                    <option value="Stable Ford">Stable Ford</option>
+                  </select>
+                </label>
+                <label class="form__field">
+                  <span>1st Place</span>
+                  <input id="first-input" name="first" required />
+                </label>
+                <label class="form__field">
+                  <span>2nd Place</span>
+                  <input id="second-input" name="second" required />
+                </label>
+                <label class="form__field">
+                  <span>3rd Place</span>
+                  <input id="third-input" name="third" required />
+                </label>
+              </div>
+              <div class="form__actions">
+                <button class="btn btn--primary" type="submit">Add results</button>
+                <button class="btn btn--ghost" type="button" id="reset-form">
+                  Clear
+                </button>
+                <p id="form-error" class="form__error" role="alert"></p>
+              </div>
+            </form>
+          </div>
+
+          <div class="card section-spacer">
+            <div class="card__header">
+              <div>
+                <h3>Leaderboard Snapshot</h3>
+                <p class="muted">Visible to the public leaderboard page.</p>
+              </div>
+            </div>
+            <div class="tables-grid">
+              <div>
+                <h4>Overall Points</h4>
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Player</th>
+                      <th>Points</th>
+                    </tr>
+                  </thead>
+                  <tbody id="overall-table"></tbody>
+                </table>
+              </div>
+              <div>
+                <h4>Net Stroke Play</h4>
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Player</th>
+                      <th>Points</th>
+                    </tr>
+                  </thead>
+                  <tbody id="net-table"></tbody>
+                </table>
+              </div>
+              <div>
+                <h4>Stable Ford</h4>
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Player</th>
+                      <th>Points</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stable-table"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card section-spacer">
+            <div class="card__header">
+              <div>
+                <h3>Monthly Results</h3>
+                <p class="muted">Remove incorrect entries if needed.</p>
+              </div>
+            </div>
+            <div class="table-wrapper">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Category</th>
+                    <th>1st</th>
+                    <th>2nd</th>
+                    <th>3rd</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="events-table"></tbody>
+              </table>
+            </div>
+          </div>
+          <p id="admin-status" class="muted small"></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <p>Private admin access for Kimmane Golf Terrain.</p>
+      </div>
+    </footer>
+
+    <script src="/admin.js"></script>
+  </body>
+</html>
