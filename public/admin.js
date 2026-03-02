@@ -8,23 +8,41 @@ const adminPanel = document.getElementById("admin-panel");
 const logoutButton = document.getElementById("logout-button");
 const adminStatus = document.getElementById("admin-status");
 
-const eventForm = document.getElementById("event-form");
-const monthInput = document.getElementById("month-input");
+const tournamentForm = document.getElementById("tournament-form");
+const tournamentNameInput = document.getElementById("tournament-name-input");
+const tournamentStartInput = document.getElementById("tournament-start-input");
+const tournamentEndInput = document.getElementById("tournament-end-input");
+const tournamentDescriptionInput = document.getElementById(
+  "tournament-description-input"
+);
+const tournamentError = document.getElementById("tournament-error");
+const tournamentSelect = document.getElementById("tournament-select");
+const tournamentSummary = document.getElementById("tournament-summary");
+
+const photoForm = document.getElementById("photo-form");
+const photoInput = document.getElementById("photo-input");
+const photoCaptionInput = document.getElementById("photo-caption-input");
+const photoCoverInput = document.getElementById("photo-cover-input");
+const photoError = document.getElementById("photo-error");
+const photoGrid = document.getElementById("photo-grid");
+
+const resultForm = document.getElementById("result-form");
 const categoryInput = document.getElementById("category-input");
+const eventDateInput = document.getElementById("event-date-input");
 const firstInput = document.getElementById("first-input");
+const firstPhotoInput = document.getElementById("first-photo-input");
 const secondInput = document.getElementById("second-input");
+const secondPhotoInput = document.getElementById("second-photo-input");
 const thirdInput = document.getElementById("third-input");
+const thirdPhotoInput = document.getElementById("third-photo-input");
 const resetFormButton = document.getElementById("reset-form");
 const formError = document.getElementById("form-error");
 
-const yearFilter = document.getElementById("year-filter");
-const overallTable = document.getElementById("overall-table");
-const netTable = document.getElementById("net-table");
-const stableTable = document.getElementById("stable-table");
-const eventsTable = document.getElementById("events-table");
+const resultsTable = document.getElementById("results-table");
 
 const TOKEN_KEY = "kimmane-admin-token";
-let selectedYear = "all";
+let tournaments = [];
+let activeTournamentId = null;
 
 function setAdminView(isLoggedIn) {
   loginCard.classList.toggle("hidden", isLoggedIn);
@@ -36,8 +54,8 @@ function setStatus(message, isError = false) {
   adminStatus.classList.toggle("status--error", isError);
 }
 
-function setFormError(message) {
-  formError.textContent = message || "";
+function setFormError(target, message) {
+  target.textContent = message || "";
 }
 
 function getToken() {
@@ -52,104 +70,157 @@ function setToken(token) {
   }
 }
 
+function formatDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatDateRange(startDate, endDate) {
+  if (!startDate && !endDate) return "Dates TBD";
+  if (startDate && endDate) {
+    return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+  }
+  return startDate ? `Starts ${formatDate(startDate)}` : `Ends ${formatDate(endDate)}`;
+}
+
 function normalizeName(name) {
   return name.trim().replace(/\s+/g, " ");
 }
 
-function ensureDefaultMonth() {
-  if (monthInput.value) return;
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  monthInput.value = `${now.getFullYear()}-${month}`;
+function ensureActiveTournament() {
+  if (activeTournamentId) return true;
+  setStatus("Create or select a tournament to continue.", true);
+  return false;
 }
 
-function buildYearOptions(events) {
-  const years = Array.from(
-    new Set(events.map((event) => event.month.split("-")[0]))
-  ).sort((a, b) => Number(b) - Number(a));
-
-  yearFilter.innerHTML = "";
-  const allOption = document.createElement("option");
-  allOption.value = "all";
-  allOption.textContent = "All years";
-  yearFilter.appendChild(allOption);
-
-  years.forEach((year) => {
+function renderTournamentSelect() {
+  tournamentSelect.innerHTML = "";
+  if (!tournaments.length) {
     const option = document.createElement("option");
-    option.value = year;
-    option.textContent = year;
-    yearFilter.appendChild(option);
-  });
-
-  if (selectedYear !== "all" && !years.includes(selectedYear)) {
-    selectedYear = "all";
-  }
-  yearFilter.value = selectedYear;
-}
-
-function renderTable(target, rows) {
-  target.innerHTML = "";
-  if (!rows.length) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="3" class="muted">No results yet.</td>`;
-    target.appendChild(tr);
+    option.value = "";
+    option.textContent = "No tournaments available";
+    tournamentSelect.appendChild(option);
+    tournamentSelect.disabled = true;
+    activeTournamentId = null;
     return;
   }
-  rows.forEach((row, index) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${index + 1}</td>
-      <td>${row.player}</td>
-      <td>${row.points}</td>
+  tournamentSelect.disabled = false;
+  tournaments.forEach((tournament) => {
+    const option = document.createElement("option");
+    option.value = tournament.id;
+    option.textContent = tournament.name;
+    tournamentSelect.appendChild(option);
+  });
+  if (activeTournamentId && tournaments.some((t) => t.id === activeTournamentId)) {
+    tournamentSelect.value = activeTournamentId;
+  } else {
+    activeTournamentId = tournaments[0]?.id || null;
+    tournamentSelect.value = activeTournamentId || "";
+  }
+}
+
+function renderTournamentSummary(tournament) {
+  if (!tournament) {
+    tournamentSummary.textContent = "No tournament selected.";
+    return;
+  }
+  tournamentSummary.textContent = `${tournament.name} · ${formatDateRange(
+    tournament.startDate,
+    tournament.endDate
+  )}`;
+}
+
+function renderPhotos(photos) {
+  photoGrid.innerHTML = "";
+  if (!photos.length) {
+    photoGrid.innerHTML = '<p class="muted">No photos uploaded yet.</p>';
+    return;
+  }
+  photos.forEach((photo) => {
+    const card = document.createElement("div");
+    card.className = "photo-card photo-card--admin";
+    card.innerHTML = `
+      <img src="${photo.image}" alt="${photo.caption || "Tournament photo"}" />
+      <div class="photo-card__meta">
+        <div>
+          <p class="muted">${photo.caption || "No caption"}</p>
+          ${photo.isCover ? '<span class="tag">Cover</span>' : ""}
+        </div>
+        <button class="btn btn--ghost" data-photo-id="${photo.id}">Remove</button>
+      </div>
     `;
-    target.appendChild(tr);
+    photoGrid.appendChild(card);
   });
 }
 
-function renderEvents(events) {
-  eventsTable.innerHTML = "";
-  if (!events.length) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="6" class="muted">No results yet.</td>`;
-    eventsTable.appendChild(tr);
+function renderResults(results) {
+  resultsTable.innerHTML = "";
+  if (!results.length) {
+    resultsTable.innerHTML =
+      '<tr><td colspan="6" class="muted">No results published yet.</td></tr>';
     return;
   }
-  events.forEach((event) => {
-    const [first, second, third] = event.placements;
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${event.month}</td>
-      <td>${event.category}</td>
+  results.forEach((result) => {
+    const [first, second, third] = result.placements;
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${result.category}</td>
+      <td>${result.eventDate ? formatDate(result.eventDate) : "-"}</td>
       <td>${first.player}</td>
       <td>${second.player}</td>
       <td>${third.player}</td>
-      <td><button class="btn btn--ghost" data-id="${event.id}">Remove</button></td>
+      <td>
+        <button class="btn btn--ghost" data-result-id="${result.id}">
+          Remove
+        </button>
+      </td>
     `;
-    eventsTable.appendChild(tr);
+    resultsTable.appendChild(row);
   });
 }
 
-async function loadData() {
-  const year = selectedYear;
-  const [allEventsResponse, eventsResponse, leaderboardResponse] =
-    await Promise.all([
-      fetch("/api/events?year=all"),
-      fetch(`/api/events?year=${encodeURIComponent(year)}`),
-      fetch(`/api/leaderboard?year=${encodeURIComponent(year)}`),
-    ]);
+async function apiRequest(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${getToken()}`,
+    },
+  });
+  if (response.status === 401) {
+    setToken("");
+    setAdminView(false);
+    throw new Error("unauthorized");
+  }
+  return response;
+}
 
-  const allEventsPayload = await allEventsResponse.json();
-  const eventsPayload = await eventsResponse.json();
-  const leaderboardPayload = await leaderboardResponse.json();
+async function loadTournaments() {
+  const response = await fetch("/api/tournaments");
+  const payload = await response.json();
+  tournaments = payload.tournaments || [];
+  renderTournamentSelect();
+  await loadTournamentDetails(activeTournamentId);
+}
 
-  buildYearOptions(allEventsPayload.events || []);
-  renderTable(overallTable, leaderboardPayload.overall || []);
-  renderTable(netTable, leaderboardPayload.byCategory?.["Net Stroke Play"] || []);
-  renderTable(
-    stableTable,
-    leaderboardPayload.byCategory?.["Stable Ford"] || []
-  );
-  renderEvents(eventsPayload.events || []);
+async function loadTournamentDetails(tournamentId) {
+  if (!tournamentId) {
+    renderTournamentSummary(null);
+    renderPhotos([]);
+    renderResults([]);
+    return;
+  }
+  const response = await fetch(`/api/tournaments/${tournamentId}`);
+  const payload = await response.json();
+  renderTournamentSummary(payload.tournament);
+  renderPhotos(payload.photos || []);
+  renderResults(payload.results || []);
 }
 
 async function login(username, password) {
@@ -165,49 +236,16 @@ async function login(username, password) {
   setToken(payload.token);
 }
 
-async function addEvent(payload) {
-  const response = await fetch("/api/events", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getToken()}`,
-    },
-    body: JSON.stringify(payload),
-  });
-  if (response.status === 401) {
-    throw new Error("unauthorized");
-  }
-  if (!response.ok) {
-    const errorPayload = await response.json();
-    throw new Error(errorPayload.error || "Unable to save event.");
-  }
-}
-
-async function removeEvent(id) {
-  const response = await fetch(`/api/events/${id}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${getToken()}` },
-  });
-  if (response.status === 401) {
-    throw new Error("unauthorized");
-  }
-  if (!response.ok) {
-    const errorPayload = await response.json();
-    throw new Error(errorPayload.error || "Unable to remove event.");
-  }
-}
-
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  loginError.textContent = "";
+  setFormError(loginError, "");
   try {
     await login(usernameInput.value.trim() || undefined, passwordInput.value);
     passwordInput.value = "";
     setAdminView(true);
-    ensureDefaultMonth();
-    await loadData();
+    await loadTournaments();
   } catch (error) {
-    loginError.textContent = "Login failed. Check your credentials.";
+    setFormError(loginError, "Login failed. Check your credentials.");
   }
 });
 
@@ -217,74 +255,181 @@ logoutButton.addEventListener("click", () => {
   setStatus("");
 });
 
-yearFilter.addEventListener("change", async (event) => {
-  selectedYear = event.target.value;
-  await loadData();
+tournamentSelect.addEventListener("change", async (event) => {
+  activeTournamentId = event.target.value;
+  await loadTournamentDetails(activeTournamentId);
 });
 
-eventForm.addEventListener("submit", async (event) => {
+tournamentForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  setFormError("");
-  const month = monthInput.value;
-  const category = categoryInput.value;
+  setFormError(tournamentError, "");
+  try {
+    const response = await apiRequest("/api/tournaments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: tournamentNameInput.value.trim(),
+        startDate: tournamentStartInput.value,
+        endDate: tournamentEndInput.value,
+        description: tournamentDescriptionInput.value.trim(),
+      }),
+    });
+    if (!response.ok) {
+      const payload = await response.json();
+      throw new Error(payload.error || "Failed to create tournament.");
+    }
+    tournamentForm.reset();
+    await loadTournaments();
+    setStatus("Tournament created.");
+  } catch (error) {
+    if (error.message === "unauthorized") return;
+    setFormError(tournamentError, error.message);
+  }
+});
+
+photoForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  setFormError(photoError, "");
+  if (!ensureActiveTournament()) return;
+  if (!photoInput.files?.length) {
+    setFormError(photoError, "Please select a photo to upload.");
+    return;
+  }
+  const formData = new FormData();
+  formData.append("photo", photoInput.files[0]);
+  if (photoCaptionInput.value.trim()) {
+    formData.append("caption", photoCaptionInput.value.trim());
+  }
+  if (photoCoverInput.checked) {
+    formData.append("isCover", "true");
+  }
+  try {
+    const response = await apiRequest(
+      `/api/tournaments/${activeTournamentId}/photos`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+    if (!response.ok) {
+      const payload = await response.json();
+      throw new Error(payload.error || "Failed to upload photo.");
+    }
+    photoForm.reset();
+    await loadTournamentDetails(activeTournamentId);
+    setStatus("Photo uploaded.");
+  } catch (error) {
+    if (error.message === "unauthorized") return;
+    setFormError(photoError, error.message);
+  }
+});
+
+photoGrid.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-photo-id]");
+  if (!button) return;
+  if (!ensureActiveTournament()) return;
+  try {
+    const response = await apiRequest(
+      `/api/tournaments/${activeTournamentId}/photos/${button.dataset.photoId}`,
+      {
+        method: "DELETE",
+      }
+    );
+    if (!response.ok) {
+      const payload = await response.json();
+      throw new Error(payload.error || "Unable to remove photo.");
+    }
+    await loadTournamentDetails(activeTournamentId);
+    setStatus("Photo removed.");
+  } catch (error) {
+    if (error.message === "unauthorized") return;
+    setStatus(error.message, true);
+  }
+});
+
+resultForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  setFormError(formError, "");
+  if (!ensureActiveTournament()) return;
+  if (!categoryInput.value.trim()) {
+    setFormError(formError, "Please enter a category.");
+    return;
+  }
   const winners = [
     normalizeName(firstInput.value),
     normalizeName(secondInput.value),
     normalizeName(thirdInput.value),
   ];
-
-  if (!month || !category) {
-    setFormError("Please provide a month and category.");
+  if (winners.some((name) => !name)) {
+    setFormError(formError, "Please enter all three player names.");
     return;
   }
-
-  if (winners.some((player) => !player)) {
-    setFormError("Please enter all three player names.");
-    return;
-  }
-
   if (new Set(winners).size !== winners.length) {
-    setFormError("Placements must be three different players.");
+    setFormError(formError, "Placements must be different players.");
     return;
+  }
+
+  const formData = new FormData();
+  formData.append("category", categoryInput.value.trim());
+  if (eventDateInput.value) {
+    formData.append("eventDate", eventDateInput.value);
+  }
+  formData.append("firstName", winners[0]);
+  formData.append("secondName", winners[1]);
+  formData.append("thirdName", winners[2]);
+  if (firstPhotoInput.files[0]) {
+    formData.append("firstPhoto", firstPhotoInput.files[0]);
+  }
+  if (secondPhotoInput.files[0]) {
+    formData.append("secondPhoto", secondPhotoInput.files[0]);
+  }
+  if (thirdPhotoInput.files[0]) {
+    formData.append("thirdPhoto", thirdPhotoInput.files[0]);
   }
 
   try {
-    await addEvent({ month, category, winners });
-    eventForm.reset();
-    ensureDefaultMonth();
-    setStatus("Results saved.");
-    await loadData();
-  } catch (error) {
-    if (error.message === "unauthorized") {
-      setToken("");
-      setAdminView(false);
-      setFormError("Session expired. Please log in again.");
-      return;
+    const response = await apiRequest(
+      `/api/tournaments/${activeTournamentId}/results`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+    if (!response.ok) {
+      const payload = await response.json();
+      throw new Error(payload.error || "Unable to publish results.");
     }
-    setFormError(error.message);
+    resultForm.reset();
+    setStatus("Results published.");
+    await loadTournamentDetails(activeTournamentId);
+  } catch (error) {
+    if (error.message === "unauthorized") return;
+    setFormError(formError, error.message);
   }
 });
 
 resetFormButton.addEventListener("click", () => {
-  eventForm.reset();
-  ensureDefaultMonth();
-  setFormError("");
+  resultForm.reset();
+  setFormError(formError, "");
 });
 
-eventsTable.addEventListener("click", async (event) => {
-  const button = event.target.closest("button[data-id]");
+resultsTable.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-result-id]");
   if (!button) return;
+  if (!ensureActiveTournament()) return;
   try {
-    await removeEvent(button.dataset.id);
-    setStatus("Entry removed.");
-    await loadData();
-  } catch (error) {
-    if (error.message === "unauthorized") {
-      setToken("");
-      setAdminView(false);
-      setStatus("Session expired. Please log in again.", true);
-      return;
+    const response = await apiRequest(
+      `/api/tournaments/${activeTournamentId}/results/${button.dataset.resultId}`,
+      { method: "DELETE" }
+    );
+    if (!response.ok) {
+      const payload = await response.json();
+      throw new Error(payload.error || "Unable to remove result.");
     }
+    setStatus("Result removed.");
+    await loadTournamentDetails(activeTournamentId);
+  } catch (error) {
+    if (error.message === "unauthorized") return;
     setStatus(error.message, true);
   }
 });
@@ -292,12 +437,10 @@ eventsTable.addEventListener("click", async (event) => {
 const existingToken = getToken();
 if (existingToken) {
   setAdminView(true);
-  ensureDefaultMonth();
-  loadData().catch(() => {
+  loadTournaments().catch(() => {
     setToken("");
     setAdminView(false);
   });
 } else {
   setAdminView(false);
-  ensureDefaultMonth();
 }

@@ -6,6 +6,7 @@ const dotenv = require("dotenv");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { randomUUID } = require("crypto");
+const multer = require("multer");
 const Database = require("better-sqlite3");
 
 dotenv.config();
@@ -17,9 +18,7 @@ const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || "";
 const JWT_SECRET = process.env.JWT_SECRET || "";
 const DATA_DIR = path.join(__dirname, "data");
 const DB_PATH = path.join(DATA_DIR, "leaderboard.db");
-
-const CATEGORIES = ["Net Stroke Play", "Stable Ford"];
-const POINTS = { 1: 3, 2: 2, 3: 1 };
+const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
 
 if (!ADMIN_PASSWORD && !ADMIN_PASSWORD_HASH) {
   console.warn("Admin password is not set. Admin login will fail.");
@@ -29,40 +28,120 @@ if (!JWT_SECRET) {
 }
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
 const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
+db.pragma("foreign_keys = ON");
+
 db.exec(`
-  CREATE TABLE IF NOT EXISTS events (
+  CREATE TABLE IF NOT EXISTS tournaments (
     id TEXT PRIMARY KEY,
-    month TEXT NOT NULL,
-    category TEXT NOT NULL,
-    first TEXT NOT NULL,
-    second TEXT NOT NULL,
-    third TEXT NOT NULL,
+    name TEXT NOT NULL,
+    location TEXT,
+    start_date TEXT,
+    end_date TEXT,
+    description TEXT,
+    cover_image TEXT,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS tournament_photos (
+    id TEXT PRIMARY KEY,
+    tournament_id TEXT NOT NULL,
+    image_path TEXT NOT NULL,
+    caption TEXT,
+    is_cover INTEGER DEFAULT 0,
     created_at TEXT NOT NULL,
-    UNIQUE(month, category)
+    FOREIGN KEY(tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS results (
+    id TEXT PRIMARY KEY,
+    tournament_id TEXT NOT NULL,
+    category TEXT NOT NULL,
+    event_date TEXT,
+    first_name TEXT NOT NULL,
+    first_photo TEXT,
+    second_name TEXT NOT NULL,
+    second_photo TEXT,
+    third_name TEXT NOT NULL,
+    third_photo TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE
   );
 `);
 
 const app = express();
 app.use(helmet());
 app.use(express.json({ limit: "1mb" }));
+app.use("/uploads", express.static(UPLOAD_DIR));
 app.use(express.static(path.join(__dirname, "public")));
 
-const eventInsert = db.prepare(
-  `INSERT INTO events (id, month, category, first, second, third, created_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?)`
+const tournamentInsert = db.prepare(
+  `INSERT INTO tournaments (id, name, location, start_date, end_date, description, cover_image, created_at)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 );
-const eventDelete = db.prepare("DELETE FROM events WHERE id = ?");
-const eventByMonthCategory = db.prepare(
-  "SELECT id FROM events WHERE month = ? AND category = ?"
+const tournamentList = db.prepare(
+  "SELECT * FROM tournaments ORDER BY start_date DESC, created_at DESC"
 );
-const eventById = db.prepare("SELECT * FROM events WHERE id = ?");
-const eventListAll = db.prepare(
-  "SELECT * FROM events ORDER BY month DESC, category ASC"
+const tournamentById = db.prepare("SELECT * FROM tournaments WHERE id = ?");
+const tournamentUpdateCover = db.prepare(
+  "UPDATE tournaments SET cover_image = ? WHERE id = ?"
 );
-const eventListByYear = db.prepare(
-  "SELECT * FROM events WHERE month LIKE ? ORDER BY month DESC, category ASC"
+const tournamentUpdate = db.prepare(
+  "UPDATE tournaments SET name = ?, location = ?, start_date = ?, end_date = ?, description = ? WHERE id = ?"
+);
+
+const photoInsert = db.prepare(
+  `INSERT INTO tournament_photos (id, tournament_id, image_path, caption, is_cover, created_at)
+   VALUES (?, ?, ?, ?, ?, ?)`
+);
+const photoListByTournament = db.prepare(
+  "SELECT * FROM tournament_photos WHERE tournament_id = ? ORDER BY created_at DESC"
+);
+const photoById = db.prepare(
+  "SELECT * FROM tournament_photos WHERE id = ? AND tournament_id = ?"
+);
+const photoDelete = db.prepare(
+  "DELETE FROM tournament_photos WHERE id = ? AND tournament_id = ?"
+);
+const photoClearCover = db.prepare(
+  "UPDATE tournament_photos SET is_cover = 0 WHERE tournament_id = ?"
+);
+const photoSetCover = db.prepare(
+  "UPDATE tournament_photos SET is_cover = 1 WHERE id = ?"
+);
+
+const resultInsert = db.prepare(
+  `INSERT INTO results (
+     id,
+     tournament_id,
+     category,
+     event_date,
+     first_name,
+     first_photo,
+     second_name,
+     second_photo,
+     third_name,
+     third_photo,
+     created_at
+   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+);
+const resultListByTournament = db.prepare(
+  "SELECT * FROM results WHERE tournament_id = ? ORDER BY event_date DESC, category ASC, created_at DESC"
+);
+const resultById = db.prepare(
+  "SELECT * FROM results WHERE id = ? AND tournament_id = ?"
+);
+const resultDelete = db.prepare(
+  "DELETE FROM results WHERE id = ? AND tournament_id = ?"
+);
+const resultByTournamentCategoryDate = db.prepare(
+  "SELECT id FROM results WHERE tournament_id = ? AND category = ? AND event_date = ?"
+);
+const resultByTournamentCategoryNoDate = db.prepare(
+  "SELECT id FROM results WHERE tournament_id = ? AND category = ? AND event_date IS NULL"
 );
 
 function requireAdmin(req, res, next) {
@@ -88,91 +167,141 @@ function requireAdmin(req, res, next) {
   }
 }
 
-function normalizeName(name) {
-  return name.trim().replace(/\s+/g, " ");
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const safeExt = ext && ext.length <= 6 ? ext : "";
+    cb(null, `${randomUUID()}${safeExt}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype && file.mimetype.startsWith("image/")) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error("Only image files are allowed."));
+  },
+});
+
+function normalizeText(value) {
+  return String(value || "").trim();
 }
 
-function mapEventRow(row) {
+function normalizeName(value) {
+  return normalizeText(value).replace(/\s+/g, " ");
+}
+
+function parseOptionalDate(value) {
+  const trimmed = normalizeText(value);
+  if (!trimmed) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return null;
+  }
+  return trimmed;
+}
+
+function removeUploadedFile(imagePath) {
+  if (!imagePath) return;
+  const fileName = path.basename(imagePath);
+  const absolute = path.join(UPLOAD_DIR, fileName);
+  if (absolute.startsWith(UPLOAD_DIR) && fs.existsSync(absolute)) {
+    fs.unlinkSync(absolute);
+  }
+}
+
+function mapTournamentRow(row) {
   return {
     id: row.id,
-    month: row.month,
+    name: row.name,
+    location: row.location,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    description: row.description,
+    coverImage: row.cover_image,
+    createdAt: row.created_at,
+  };
+}
+
+function mapPhotoRow(row) {
+  return {
+    id: row.id,
+    image: row.image_path,
+    caption: row.caption,
+    isCover: Boolean(row.is_cover),
+    createdAt: row.created_at,
+  };
+}
+
+function mapResultRow(row) {
+  return {
+    id: row.id,
     category: row.category,
+    eventDate: row.event_date,
     placements: [
-      { position: 1, player: row.first },
-      { position: 2, player: row.second },
-      { position: 3, player: row.third },
+      { position: 1, player: row.first_name, photo: row.first_photo },
+      { position: 2, player: row.second_name, photo: row.second_photo },
+      { position: 3, player: row.third_name, photo: row.third_photo },
     ],
     createdAt: row.created_at,
   };
 }
 
-function listEvents(year) {
-  const rows =
-    year && year !== "all"
-      ? eventListByYear.all(`${year}-%`)
-      : eventListAll.all();
-  return rows.map(mapEventRow);
+function tableExists(name) {
+  return Boolean(
+    db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?")
+      .get(name)
+  );
 }
 
-function addPoints(map, player, points) {
-  map.set(player, (map.get(player) || 0) + points);
+function maybeMigrateLegacyEvents() {
+  if (!tableExists("events")) return;
+  const tournamentsCount = db
+    .prepare("SELECT COUNT(*) AS count FROM tournaments")
+    .get().count;
+  if (tournamentsCount > 0) return;
+  const legacyEvents = db.prepare("SELECT * FROM events").all();
+  if (!legacyEvents.length) return;
+
+  const tournamentId = randomUUID();
+  tournamentInsert.run(
+    tournamentId,
+    "Monthly Medal Match",
+    "Kimmane Golf Terrain",
+    null,
+    null,
+    "Migrated from the previous leaderboard data.",
+    null,
+    new Date().toISOString()
+  );
+
+  legacyEvents.forEach((eventRow) => {
+    const eventDate =
+      eventRow.month && /^\d{4}-\d{2}$/.test(eventRow.month)
+        ? `${eventRow.month}-01`
+        : null;
+    resultInsert.run(
+      randomUUID(),
+      tournamentId,
+      eventRow.category,
+      eventDate,
+      eventRow.first,
+      null,
+      eventRow.second,
+      null,
+      eventRow.third,
+      null,
+      eventRow.created_at || new Date().toISOString()
+    );
+  });
 }
 
-function computeLeaderboard(events) {
-  const overall = new Map();
-  const byCategory = {
-    "Net Stroke Play": new Map(),
-    "Stable Ford": new Map(),
-  };
-
-  for (const event of events) {
-    for (const placement of event.placements) {
-      const points = POINTS[placement.position] || 0;
-      addPoints(overall, placement.player, points);
-      if (!byCategory[event.category]) {
-        byCategory[event.category] = new Map();
-      }
-      addPoints(byCategory[event.category], placement.player, points);
-    }
-  }
-
-  const toSortedRows = (map) =>
-    [...map.entries()]
-      .map(([player, points]) => ({ player, points }))
-      .sort((a, b) => {
-        if (b.points !== a.points) return b.points - a.points;
-        return a.player.localeCompare(b.player);
-      });
-
-  return {
-    overall: toSortedRows(overall),
-    byCategory: {
-      "Net Stroke Play": toSortedRows(byCategory["Net Stroke Play"]),
-      "Stable Ford": toSortedRows(byCategory["Stable Ford"]),
-    },
-  };
-}
-
-function validateEventInput({ month, category, winners }) {
-  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
-    return "Month must be in YYYY-MM format.";
-  }
-  if (!CATEGORIES.includes(category)) {
-    return "Category is not valid.";
-  }
-  if (!Array.isArray(winners) || winners.length !== 3) {
-    return "Three winners are required.";
-  }
-  const normalized = winners.map((player) => normalizeName(player));
-  if (normalized.some((player) => !player)) {
-    return "All winners must have names.";
-  }
-  const unique = new Set(normalized);
-  if (unique.size !== normalized.length) {
-    return "Placements must be different players.";
-  }
-  return null;
-}
+maybeMigrateLegacyEvents();
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
@@ -182,24 +311,27 @@ app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
-app.get("/api/leaderboard", (req, res) => {
-  const year = req.query.year || "all";
-  const events = listEvents(year);
-  const leaderboard = computeLeaderboard(events);
-  res.json({
-    year,
-    categories: CATEGORIES,
-    points: POINTS,
-    overall: leaderboard.overall,
-    byCategory: leaderboard.byCategory,
-    updatedAt: new Date().toISOString(),
-  });
+app.get("/api/tournaments", (req, res) => {
+  const tournaments = tournamentList.all().map(mapTournamentRow);
+  res.json({ tournaments });
 });
 
-app.get("/api/events", (req, res) => {
-  const year = req.query.year || "all";
-  const events = listEvents(year);
-  res.json({ year, events });
+app.get("/api/tournaments/:id", (req, res) => {
+  const tournament = tournamentById.get(req.params.id);
+  if (!tournament) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+  const photos = photoListByTournament
+    .all(req.params.id)
+    .map(mapPhotoRow);
+  const results = resultListByTournament
+    .all(req.params.id)
+    .map(mapResultRow);
+  return res.json({
+    tournament: mapTournamentRow(tournament),
+    photos,
+    results,
+  });
 });
 
 app.post("/api/admin/login", (req, res) => {
@@ -223,41 +355,224 @@ app.post("/api/admin/login", (req, res) => {
   res.json({ token, expiresIn: "12h" });
 });
 
-app.post("/api/events", requireAdmin, (req, res) => {
-  const { month, category, winners } = req.body || {};
-  const error = validateEventInput({ month, category, winners });
-  if (error) {
-    return res.status(400).json({ error });
+app.post("/api/tournaments", requireAdmin, (req, res) => {
+  const name = normalizeText(req.body?.name);
+  if (!name) {
+    return res.status(400).json({ error: "Tournament name is required." });
   }
-  if (eventByMonthCategory.get(month, category)) {
-    return res.status(409).json({
-      error: "Results already exist for this month and category.",
-    });
+  const location = normalizeText(req.body?.location) || "Kimmane Golf Terrain";
+  const startDateRaw = normalizeText(req.body?.startDate);
+  const endDateRaw = normalizeText(req.body?.endDate);
+  if (startDateRaw && !parseOptionalDate(startDateRaw)) {
+    return res
+      .status(400)
+      .json({ error: "Start date must be in YYYY-MM-DD format." });
   }
-  const id =
-    typeof randomUUID === "function"
-      ? randomUUID()
-      : `event-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const normalized = winners.map((player) => normalizeName(player));
-  eventInsert.run(
+  if (endDateRaw && !parseOptionalDate(endDateRaw)) {
+    return res
+      .status(400)
+      .json({ error: "End date must be in YYYY-MM-DD format." });
+  }
+  const startDate = startDateRaw || null;
+  const endDate = endDateRaw || null;
+  const description = normalizeText(req.body?.description) || null;
+  const id = randomUUID();
+  tournamentInsert.run(
     id,
-    month,
-    category,
-    normalized[0],
-    normalized[1],
-    normalized[2],
+    name,
+    location,
+    startDate,
+    endDate,
+    description,
+    null,
     new Date().toISOString()
   );
-  const created = mapEventRow(eventById.get(id));
-  return res.status(201).json({ event: created });
+  const created = tournamentById.get(id);
+  return res.status(201).json({ tournament: mapTournamentRow(created) });
 });
 
-app.delete("/api/events/:id", requireAdmin, (req, res) => {
-  const result = eventDelete.run(req.params.id);
-  if (!result.changes) {
-    return res.status(404).json({ error: "Event not found." });
+app.patch("/api/tournaments/:id", requireAdmin, (req, res) => {
+  const tournament = tournamentById.get(req.params.id);
+  if (!tournament) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+  const startDateRaw = normalizeText(req.body?.startDate);
+  const endDateRaw = normalizeText(req.body?.endDate);
+  if (startDateRaw && !parseOptionalDate(startDateRaw)) {
+    return res
+      .status(400)
+      .json({ error: "Start date must be in YYYY-MM-DD format." });
+  }
+  if (endDateRaw && !parseOptionalDate(endDateRaw)) {
+    return res
+      .status(400)
+      .json({ error: "End date must be in YYYY-MM-DD format." });
+  }
+  const name = normalizeText(req.body?.name) || tournament.name;
+  const location = normalizeText(req.body?.location) || tournament.location;
+  const startDate = startDateRaw ? startDateRaw : tournament.start_date;
+  const endDate = endDateRaw ? endDateRaw : tournament.end_date;
+  const description =
+    normalizeText(req.body?.description) || tournament.description;
+  tournamentUpdate.run(name, location, startDate, endDate, description, req.params.id);
+  const updated = tournamentById.get(req.params.id);
+  return res.json({ tournament: mapTournamentRow(updated) });
+});
+
+app.post(
+  "/api/tournaments/:id/photos",
+  requireAdmin,
+  upload.single("photo"),
+  (req, res) => {
+    const tournament = tournamentById.get(req.params.id);
+    if (!tournament) {
+      if (req.file) removeUploadedFile(`/uploads/${req.file.filename}`);
+      return res.status(404).json({ error: "Tournament not found." });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: "Photo file is required." });
+    }
+    const caption = normalizeText(req.body?.caption) || null;
+    const isCover = req.body?.isCover === "true" || req.body?.isCover === "1";
+    const photoId = randomUUID();
+    const imagePath = `/uploads/${req.file.filename}`;
+    photoInsert.run(
+      photoId,
+      req.params.id,
+      imagePath,
+      caption,
+      isCover ? 1 : 0,
+      new Date().toISOString()
+    );
+    if (isCover || !tournament.cover_image) {
+      photoClearCover.run(req.params.id);
+      photoSetCover.run(photoId);
+      tournamentUpdateCover.run(imagePath, req.params.id);
+    }
+    const created = photoById.get(photoId, req.params.id);
+    return res.status(201).json({ photo: mapPhotoRow(created) });
+  }
+);
+
+app.delete("/api/tournaments/:id/photos/:photoId", requireAdmin, (req, res) => {
+  const photo = photoById.get(req.params.photoId, req.params.id);
+  if (!photo) {
+    return res.status(404).json({ error: "Photo not found." });
+  }
+  photoDelete.run(req.params.photoId, req.params.id);
+  removeUploadedFile(photo.image_path);
+  if (photo.is_cover) {
+    const remaining = photoListByTournament.all(req.params.id);
+    if (remaining.length) {
+      const nextCover = remaining[0];
+      photoClearCover.run(req.params.id);
+      photoSetCover.run(nextCover.id);
+      tournamentUpdateCover.run(nextCover.image_path, req.params.id);
+    } else {
+      tournamentUpdateCover.run(null, req.params.id);
+    }
   }
   return res.json({ ok: true });
+});
+
+app.post(
+  "/api/tournaments/:id/results",
+  requireAdmin,
+  upload.fields([
+    { name: "firstPhoto", maxCount: 1 },
+    { name: "secondPhoto", maxCount: 1 },
+    { name: "thirdPhoto", maxCount: 1 },
+  ]),
+  (req, res) => {
+    const tournament = tournamentById.get(req.params.id);
+    if (!tournament) {
+      return res.status(404).json({ error: "Tournament not found." });
+    }
+
+    const category = normalizeText(req.body?.category);
+    const eventDateRaw = normalizeText(req.body?.eventDate);
+    if (eventDateRaw && !parseOptionalDate(eventDateRaw)) {
+      return res
+        .status(400)
+        .json({ error: "Event date must be in YYYY-MM-DD format." });
+    }
+    const eventDate = eventDateRaw || null;
+    const firstName = normalizeName(req.body?.firstName);
+    const secondName = normalizeName(req.body?.secondName);
+    const thirdName = normalizeName(req.body?.thirdName);
+
+    if (!category) {
+      return res.status(400).json({ error: "Category is required." });
+    }
+    if (!firstName || !secondName || !thirdName) {
+      return res
+        .status(400)
+        .json({ error: "Please provide all three placements." });
+    }
+    if (new Set([firstName, secondName, thirdName]).size !== 3) {
+      return res
+        .status(400)
+        .json({ error: "Placements must be different players." });
+    }
+    const existing = eventDate
+      ? resultByTournamentCategoryDate.get(req.params.id, category, eventDate)
+      : resultByTournamentCategoryNoDate.get(req.params.id, category);
+    if (existing) {
+      return res.status(409).json({
+        error: "Results already exist for this category and date.",
+      });
+    }
+
+    const firstPhoto = req.files?.firstPhoto?.[0]
+      ? `/uploads/${req.files.firstPhoto[0].filename}`
+      : null;
+    const secondPhoto = req.files?.secondPhoto?.[0]
+      ? `/uploads/${req.files.secondPhoto[0].filename}`
+      : null;
+    const thirdPhoto = req.files?.thirdPhoto?.[0]
+      ? `/uploads/${req.files.thirdPhoto[0].filename}`
+      : null;
+
+    const resultId = randomUUID();
+    resultInsert.run(
+      resultId,
+      req.params.id,
+      category,
+      eventDate,
+      firstName,
+      firstPhoto,
+      secondName,
+      secondPhoto,
+      thirdName,
+      thirdPhoto,
+      new Date().toISOString()
+    );
+
+    const created = resultById.get(resultId, req.params.id);
+    return res.status(201).json({ result: mapResultRow(created) });
+  }
+);
+
+app.delete("/api/tournaments/:id/results/:resultId", requireAdmin, (req, res) => {
+  const result = resultById.get(req.params.resultId, req.params.id);
+  if (!result) {
+    return res.status(404).json({ error: "Result not found." });
+  }
+  resultDelete.run(req.params.resultId, req.params.id);
+  removeUploadedFile(result.first_photo);
+  removeUploadedFile(result.second_photo);
+  removeUploadedFile(result.third_photo);
+  return res.json({ ok: true });
+});
+
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ error: err.message });
+  }
+  if (err?.message === "Only image files are allowed.") {
+    return res.status(400).json({ error: err.message });
+  }
+  return next(err);
 });
 
 app.use((req, res) => {

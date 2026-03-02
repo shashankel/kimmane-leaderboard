@@ -1,10 +1,11 @@
 # kimmane-leaderboard
-Manage the leaderboard for Kimmane Monthly Medal Match.
+Manage and publish results for multiple Kimmane Golf Terrain tournaments.
 
 ## Features
-- Public leaderboard for all golfers.
-- Admin-only login for updating results.
-- Persistent SQLite data store.
+- Public tournament results portal.
+- Admin-only login for adding tournaments and results.
+- Photo galleries and winner photos per category.
+- Persistent SQLite data store and local image storage.
 - Branded styling inspired by the Kimmane resort palette.
 
 ## Getting started
@@ -22,7 +23,7 @@ Manage the leaderboard for Kimmane Monthly Medal Match.
    npm start
    ```
 4. Open:
-   - Public leaderboard: `http://localhost:3000`
+   - Public site: `http://localhost:3000`
    - Admin portal: `http://localhost:3000/admin`
 
 ## Environment variables
@@ -34,11 +35,15 @@ The admin login uses environment variables (see `.env.example`):
 - `PORT` (optional, default `3000`)
 
 ## Data storage
-All leaderboard data is stored in a local SQLite database at:
+All tournament data is stored in a local SQLite database at:
 ```
 data/leaderboard.db
 ```
-Back up the `data` folder to preserve results.
+Uploaded images are stored in:
+```
+data/uploads/
+```
+Back up the `data` folder to preserve results and photos.
 
 ## Branding updates
 To further match Kimmane branding (logos, fonts, imagery), update:

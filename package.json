@@ -1,7 +1,7 @@
 {
   "name": "kimmane-leaderboard",
   "version": "1.0.0",
-  "description": "Manage the leaderboard for Kimmane Monthly Medal Match.",
+  "description": "Manage and publish tournament results for Kimmane Golf Terrain.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -23,6 +23,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.0"
   }
 }
