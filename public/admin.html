@@ -61,6 +61,39 @@
           <div class="card section-spacer">
             <div class="card__header">
               <div>
+                <h3>Create a Tournament Series</h3>
+                <p class="muted">Add a multi-edition series with a leaderboard.</p>
+              </div>
+            </div>
+            <form id="series-form" class="form">
+              <div class="form__grid">
+                <label class="form__field">
+                  <span>Series name</span>
+                  <input id="series-name-input" required />
+                </label>
+                <label class="form__field">
+                  <span>Start date</span>
+                  <input id="series-start-input" type="date" />
+                </label>
+                <label class="form__field">
+                  <span>End date</span>
+                  <input id="series-end-input" type="date" />
+                </label>
+                <label class="form__field">
+                  <span>Description</span>
+                  <textarea id="series-description-input" rows="3"></textarea>
+                </label>
+              </div>
+              <div class="form__actions">
+                <button class="btn btn--primary" type="submit">Create series</button>
+                <p id="series-error" class="form__error" role="alert"></p>
+              </div>
+            </form>
+          </div>
+
+          <div class="card section-spacer">
+            <div class="card__header">
+              <div>
                 <h3>Create a Tournament</h3>
                 <p class="muted">Add a new event to publish results.</p>
               </div>
@@ -70,6 +103,14 @@
                 <label class="form__field">
                   <span>Tournament name</span>
                   <input id="tournament-name-input" required />
+                </label>
+                <label class="form__field">
+                  <span>Series (optional)</span>
+                  <select id="series-select-input"></select>
+                </label>
+                <label class="form__field">
+                  <span>Edition label</span>
+                  <input id="edition-label-input" placeholder="e.g. Round 1, Feb 2026" />
                 </label>
                 <label class="form__field">
                   <span>Start date</span>

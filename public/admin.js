@@ -8,8 +8,19 @@ const adminPanel = document.getElementById("admin-panel");
 const logoutButton = document.getElementById("logout-button");
 const adminStatus = document.getElementById("admin-status");
 
+const seriesForm = document.getElementById("series-form");
+const seriesNameInput = document.getElementById("series-name-input");
+const seriesStartInput = document.getElementById("series-start-input");
+const seriesEndInput = document.getElementById("series-end-input");
+const seriesDescriptionInput = document.getElementById(
+  "series-description-input"
+);
+const seriesError = document.getElementById("series-error");
+
 const tournamentForm = document.getElementById("tournament-form");
 const tournamentNameInput = document.getElementById("tournament-name-input");
+const seriesSelectInput = document.getElementById("series-select-input");
+const editionLabelInput = document.getElementById("edition-label-input");
 const tournamentStartInput = document.getElementById("tournament-start-input");
 const tournamentEndInput = document.getElementById("tournament-end-input");
 const tournamentDescriptionInput = document.getElementById(
@@ -42,6 +53,7 @@ const resultsTable = document.getElementById("results-table");
 
 const TOKEN_KEY = "kimmane-admin-token";
 let tournaments = [];
+let series = [];
 let activeTournamentId = null;
 
 function setAdminView(isLoggedIn) {
@@ -114,7 +126,9 @@ function renderTournamentSelect() {
   tournaments.forEach((tournament) => {
     const option = document.createElement("option");
     option.value = tournament.id;
-    option.textContent = tournament.name;
+    option.textContent = tournament.seriesName
+      ? `${tournament.name} (${tournament.seriesName})`
+      : tournament.name;
     tournamentSelect.appendChild(option);
   });
   if (activeTournamentId && tournaments.some((t) => t.id === activeTournamentId)) {
@@ -130,7 +144,11 @@ function renderTournamentSummary(tournament) {
     tournamentSummary.textContent = "No tournament selected.";
     return;
   }
-  tournamentSummary.textContent = `${tournament.name} · ${formatDateRange(
+  const label = tournament.editionLabel ? ` · ${tournament.editionLabel}` : "";
+  const seriesLabel = tournament.seriesName
+    ? ` · Series: ${tournament.seriesName}`
+    : "";
+  tournamentSummary.textContent = `${tournament.name}${label}${seriesLabel} · ${formatDateRange(
     tournament.startDate,
     tournament.endDate
   )}`;
@@ -209,6 +227,28 @@ async function loadTournaments() {
   await loadTournamentDetails(activeTournamentId);
 }
 
+function renderSeriesSelect() {
+  seriesSelectInput.innerHTML = "";
+  const standaloneOption = document.createElement("option");
+  standaloneOption.value = "";
+  standaloneOption.textContent = "Standalone tournament";
+  seriesSelectInput.appendChild(standaloneOption);
+
+  series.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.id;
+    option.textContent = item.name;
+    seriesSelectInput.appendChild(option);
+  });
+}
+
+async function loadSeries() {
+  const response = await fetch("/api/series");
+  const payload = await response.json();
+  series = payload.series || [];
+  renderSeriesSelect();
+}
+
 async function loadTournamentDetails(tournamentId) {
   if (!tournamentId) {
     renderTournamentSummary(null);
@@ -243,6 +283,7 @@ loginForm.addEventListener("submit", async (event) => {
     await login(usernameInput.value.trim() || undefined, passwordInput.value);
     passwordInput.value = "";
     setAdminView(true);
+    await loadSeries();
     await loadTournaments();
   } catch (error) {
     setFormError(loginError, "Login failed. Check your credentials.");
@@ -269,6 +310,8 @@ tournamentForm.addEventListener("submit", async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: tournamentNameInput.value.trim(),
+        seriesId: seriesSelectInput.value || null,
+        editionLabel: editionLabelInput.value.trim(),
         startDate: tournamentStartInput.value,
         endDate: tournamentEndInput.value,
         description: tournamentDescriptionInput.value.trim(),
@@ -279,11 +322,39 @@ tournamentForm.addEventListener("submit", async (event) => {
       throw new Error(payload.error || "Failed to create tournament.");
     }
     tournamentForm.reset();
+    renderSeriesSelect();
     await loadTournaments();
     setStatus("Tournament created.");
   } catch (error) {
     if (error.message === "unauthorized") return;
     setFormError(tournamentError, error.message);
+  }
+});
+
+seriesForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  setFormError(seriesError, "");
+  try {
+    const response = await apiRequest("/api/series", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: seriesNameInput.value.trim(),
+        startDate: seriesStartInput.value,
+        endDate: seriesEndInput.value,
+        description: seriesDescriptionInput.value.trim(),
+      }),
+    });
+    if (!response.ok) {
+      const payload = await response.json();
+      throw new Error(payload.error || "Failed to create series.");
+    }
+    seriesForm.reset();
+    await loadSeries();
+    setStatus("Series created.");
+  } catch (error) {
+    if (error.message === "unauthorized") return;
+    setFormError(seriesError, error.message);
   }
 });
 
@@ -437,7 +508,7 @@ resultsTable.addEventListener("click", async (event) => {
 const existingToken = getToken();
 if (existingToken) {
   setAdminView(true);
-  loadTournaments().catch(() => {
+  Promise.all([loadSeries(), loadTournaments()]).catch(() => {
     setToken("");
     setAdminView(false);
   });

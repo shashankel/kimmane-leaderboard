@@ -143,6 +143,7 @@ a {
   gap: 0;
   color: inherit;
   font-family: inherit;
+  text-decoration: none;
 }
 
 .tournament-card--active {
@@ -172,6 +173,10 @@ a {
   font-weight: 700;
   color: var(--brand-green);
   font-size: 1.6rem;
+}
+
+.tournament-card--series .tournament-card__placeholder {
+  font-size: 1.2rem;
 }
 
 .tournament-card__body {
@@ -247,6 +252,40 @@ a {
 .results-grid {
   display: grid;
   gap: 16px;
+}
+
+.edition-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.edition-card {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid var(--brand-line);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.edition-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.edition-card__results {
+  display: grid;
+  gap: 12px;
+}
+
+.edition-result {
+  background: #fdfaf4;
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(201, 166, 107, 0.2);
 }
 
 .result-card {

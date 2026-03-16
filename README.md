@@ -2,9 +2,10 @@
 Manage and publish results for multiple Kimmane Golf Terrain tournaments.
 
 ## Features
-- Public tournament results portal.
-- Admin-only login for adding tournaments and results.
-- Photo galleries and winner photos per category.
+- Public portal for single tournaments and tournament series.
+- One public page per tournament with results and photos.
+- Series leaderboard that totals points across all editions.
+- Admin-only login for adding series, tournaments, results, and photos.
 - Persistent SQLite data store and local image storage.
 - Branded styling inspired by the Kimmane resort palette.
 
@@ -25,6 +26,8 @@ Manage and publish results for multiple Kimmane Golf Terrain tournaments.
 4. Open:
    - Public site: `http://localhost:3000`
    - Admin portal: `http://localhost:3000/admin`
+   - Tournament page: `http://localhost:3000/tournaments/:id`
+   - Series page: `http://localhost:3000/series/:id`
 
 ## Environment variables
 The admin login uses environment variables (see `.env.example`):

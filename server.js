@@ -19,6 +19,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "";
 const DATA_DIR = path.join(__dirname, "data");
 const DB_PATH = path.join(DATA_DIR, "leaderboard.db");
 const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
+const POINTS = { 1: 3, 2: 2, 3: 1 };
 
 if (!ADMIN_PASSWORD && !ADMIN_PASSWORD_HASH) {
   console.warn("Admin password is not set. Admin login will fail.");
@@ -35,6 +36,16 @@ db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS series (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    start_date TEXT,
+    end_date TEXT,
+    description TEXT,
+    cover_image TEXT,
+    created_at TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS tournaments (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -43,7 +54,10 @@ db.exec(`
     end_date TEXT,
     description TEXT,
     cover_image TEXT,
-    created_at TEXT NOT NULL
+    series_id TEXT,
+    edition_label TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(series_id) REFERENCES series(id) ON DELETE SET NULL
   );
 
   CREATE TABLE IF NOT EXISTS tournament_photos (
@@ -72,25 +86,76 @@ db.exec(`
   );
 `);
 
+function columnExists(tableName, columnName) {
+  const columns = db
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all()
+    .map((row) => row.name);
+  return columns.includes(columnName);
+}
+
+if (!columnExists("tournaments", "series_id")) {
+  db.exec("ALTER TABLE tournaments ADD COLUMN series_id TEXT");
+}
+if (!columnExists("tournaments", "edition_label")) {
+  db.exec("ALTER TABLE tournaments ADD COLUMN edition_label TEXT");
+}
+
 const app = express();
 app.use(helmet());
 app.use(express.json({ limit: "1mb" }));
 app.use("/uploads", express.static(UPLOAD_DIR));
 app.use(express.static(path.join(__dirname, "public")));
 
+const seriesInsert = db.prepare(
+  `INSERT INTO series (id, name, start_date, end_date, description, cover_image, created_at)
+   VALUES (?, ?, ?, ?, ?, ?, ?)`
+);
+const seriesList = db.prepare(
+  "SELECT * FROM series ORDER BY start_date DESC, created_at DESC"
+);
+const seriesById = db.prepare("SELECT * FROM series WHERE id = ?");
+
 const tournamentInsert = db.prepare(
-  `INSERT INTO tournaments (id, name, location, start_date, end_date, description, cover_image, created_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  `INSERT INTO tournaments (
+     id,
+     name,
+     location,
+     start_date,
+     end_date,
+     description,
+     cover_image,
+     series_id,
+     edition_label,
+     created_at
+   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 );
 const tournamentList = db.prepare(
-  "SELECT * FROM tournaments ORDER BY start_date DESC, created_at DESC"
+  `SELECT tournaments.*, series.name AS series_name
+   FROM tournaments
+   LEFT JOIN series ON tournaments.series_id = series.id
+   ORDER BY tournaments.start_date DESC, tournaments.created_at DESC`
 );
-const tournamentById = db.prepare("SELECT * FROM tournaments WHERE id = ?");
+const tournamentById = db.prepare(
+  `SELECT tournaments.*, series.name AS series_name
+   FROM tournaments
+   LEFT JOIN series ON tournaments.series_id = series.id
+   WHERE tournaments.id = ?`
+);
+const tournamentBySeries = db.prepare(
+  `SELECT tournaments.*, series.name AS series_name
+   FROM tournaments
+   LEFT JOIN series ON tournaments.series_id = series.id
+   WHERE tournaments.series_id = ?
+   ORDER BY tournaments.start_date ASC, tournaments.created_at ASC`
+);
 const tournamentUpdateCover = db.prepare(
   "UPDATE tournaments SET cover_image = ? WHERE id = ?"
 );
 const tournamentUpdate = db.prepare(
-  "UPDATE tournaments SET name = ?, location = ?, start_date = ?, end_date = ?, description = ? WHERE id = ?"
+  `UPDATE tournaments
+   SET name = ?, location = ?, start_date = ?, end_date = ?, description = ?, series_id = ?, edition_label = ?
+   WHERE id = ?`
 );
 
 const photoInsert = db.prepare(
@@ -223,6 +288,21 @@ function mapTournamentRow(row) {
     endDate: row.end_date,
     description: row.description,
     coverImage: row.cover_image,
+    seriesId: row.series_id || null,
+    seriesName: row.series_name || null,
+    editionLabel: row.edition_label || null,
+    createdAt: row.created_at,
+  };
+}
+
+function mapSeriesRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    description: row.description,
+    coverImage: row.cover_image,
     createdAt: row.created_at,
   };
 }
@@ -251,6 +331,45 @@ function mapResultRow(row) {
   };
 }
 
+function addPoints(scoreMap, player, points) {
+  scoreMap.set(player, (scoreMap.get(player) || 0) + points);
+}
+
+function computeLeaderboard(results) {
+  const overall = new Map();
+  const byCategory = new Map();
+
+  results.forEach((result) => {
+    if (!byCategory.has(result.category)) {
+      byCategory.set(result.category, new Map());
+    }
+    const categoryMap = byCategory.get(result.category);
+    result.placements.forEach((placement) => {
+      const points = POINTS[placement.position] || 0;
+      addPoints(overall, placement.player, points);
+      addPoints(categoryMap, placement.player, points);
+    });
+  });
+
+  const toRows = (scoreMap) =>
+    [...scoreMap.entries()]
+      .map(([player, points]) => ({ player, points }))
+      .sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        return a.player.localeCompare(b.player);
+      });
+
+  const byCategoryRows = {};
+  for (const [category, scoreMap] of byCategory.entries()) {
+    byCategoryRows[category] = toRows(scoreMap);
+  }
+
+  return {
+    overall: toRows(overall),
+    byCategory: byCategoryRows,
+  };
+}
+
 function tableExists(name) {
   return Boolean(
     db
@@ -276,6 +395,8 @@ function maybeMigrateLegacyEvents() {
     null,
     null,
     "Migrated from the previous leaderboard data.",
+    null,
+    null,
     null,
     new Date().toISOString()
   );
@@ -311,6 +432,14 @@ app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
+app.get("/tournaments/:id", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "tournament.html"));
+});
+
+app.get("/series/:id", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "series.html"));
+});
+
 app.get("/api/tournaments", (req, res) => {
   const tournaments = tournamentList.all().map(mapTournamentRow);
   res.json({ tournaments });
@@ -331,6 +460,34 @@ app.get("/api/tournaments/:id", (req, res) => {
     tournament: mapTournamentRow(tournament),
     photos,
     results,
+  });
+});
+
+app.get("/api/series", (req, res) => {
+  const series = seriesList.all().map(mapSeriesRow);
+  res.json({ series });
+});
+
+app.get("/api/series/:id", (req, res) => {
+  const series = seriesById.get(req.params.id);
+  if (!series) {
+    return res.status(404).json({ error: "Series not found." });
+  }
+  const tournaments = tournamentBySeries.all(req.params.id).map(mapTournamentRow);
+  const editions = tournaments.map((tournament) => {
+    const results = resultListByTournament
+      .all(tournament.id)
+      .map(mapResultRow);
+    return { tournament, results };
+  });
+  const allResults = editions.flatMap((edition) => edition.results);
+  const leaderboard = computeLeaderboard(allResults);
+  return res.json({
+    series: mapSeriesRow(series),
+    leaderboard,
+    tournaments,
+    editions,
+    points: POINTS,
   });
 });
 
@@ -361,6 +518,11 @@ app.post("/api/tournaments", requireAdmin, (req, res) => {
     return res.status(400).json({ error: "Tournament name is required." });
   }
   const location = normalizeText(req.body?.location) || "Kimmane Golf Terrain";
+  const seriesId = normalizeText(req.body?.seriesId) || null;
+  const editionLabel = normalizeText(req.body?.editionLabel) || null;
+  if (seriesId && !seriesById.get(seriesId)) {
+    return res.status(400).json({ error: "Series not found." });
+  }
   const startDateRaw = normalizeText(req.body?.startDate);
   const endDateRaw = normalizeText(req.body?.endDate);
   if (startDateRaw && !parseOptionalDate(startDateRaw)) {
@@ -385,6 +547,8 @@ app.post("/api/tournaments", requireAdmin, (req, res) => {
     endDate,
     description,
     null,
+    seriesId,
+    editionLabel,
     new Date().toISOString()
   );
   const created = tournamentById.get(id);
@@ -395,6 +559,11 @@ app.patch("/api/tournaments/:id", requireAdmin, (req, res) => {
   const tournament = tournamentById.get(req.params.id);
   if (!tournament) {
     return res.status(404).json({ error: "Tournament not found." });
+  }
+  const seriesId = normalizeText(req.body?.seriesId) || null;
+  const editionLabel = normalizeText(req.body?.editionLabel) || null;
+  if (seriesId && !seriesById.get(seriesId)) {
+    return res.status(400).json({ error: "Series not found." });
   }
   const startDateRaw = normalizeText(req.body?.startDate);
   const endDateRaw = normalizeText(req.body?.endDate);
@@ -414,9 +583,50 @@ app.patch("/api/tournaments/:id", requireAdmin, (req, res) => {
   const endDate = endDateRaw ? endDateRaw : tournament.end_date;
   const description =
     normalizeText(req.body?.description) || tournament.description;
-  tournamentUpdate.run(name, location, startDate, endDate, description, req.params.id);
+  tournamentUpdate.run(
+    name,
+    location,
+    startDate,
+    endDate,
+    description,
+    seriesId,
+    editionLabel,
+    req.params.id
+  );
   const updated = tournamentById.get(req.params.id);
   return res.json({ tournament: mapTournamentRow(updated) });
+});
+
+app.post("/api/series", requireAdmin, (req, res) => {
+  const name = normalizeText(req.body?.name);
+  if (!name) {
+    return res.status(400).json({ error: "Series name is required." });
+  }
+  const startDateRaw = normalizeText(req.body?.startDate);
+  const endDateRaw = normalizeText(req.body?.endDate);
+  if (startDateRaw && !parseOptionalDate(startDateRaw)) {
+    return res
+      .status(400)
+      .json({ error: "Start date must be in YYYY-MM-DD format." });
+  }
+  if (endDateRaw && !parseOptionalDate(endDateRaw)) {
+    return res
+      .status(400)
+      .json({ error: "End date must be in YYYY-MM-DD format." });
+  }
+  const description = normalizeText(req.body?.description) || null;
+  const id = randomUUID();
+  seriesInsert.run(
+    id,
+    name,
+    startDateRaw || null,
+    endDateRaw || null,
+    description,
+    null,
+    new Date().toISOString()
+  );
+  const created = seriesById.get(id);
+  return res.status(201).json({ series: mapSeriesRow(created) });
 });
 
 app.post(

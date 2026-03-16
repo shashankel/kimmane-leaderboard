@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kimmane Tournament Series</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header__content">
+        <div class="brand">
+          <span class="brand__label">Kimmane Golf Terrain</span>
+          <span class="brand__title">Tournament Series</span>
+        </div>
+        <nav class="header__nav">
+          <a class="nav-link" href="/">All Tournaments</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container hero__content">
+          <p class="eyebrow">Series leaderboard</p>
+          <h1 id="series-name">Tournament Series</h1>
+          <p id="series-dates"></p>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container card">
+          <p id="series-description" class="muted"></p>
+          <div class="detail-grid">
+            <div>
+              <img id="series-cover" class="cover-image hidden" alt="Series cover" />
+            </div>
+            <div>
+              <h3>Series Leaderboard</h3>
+              <p class="muted small">Points: 1st = 3, 2nd = 2, 3rd = 1.</p>
+              <div class="tables-grid">
+                <div>
+                  <h4>Overall Points</h4>
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Rank</th>
+                        <th>Player</th>
+                        <th>Points</th>
+                      </tr>
+                    </thead>
+                    <tbody id="overall-table"></tbody>
+                  </table>
+                </div>
+                <div id="category-tables"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-spacer">
+            <h3>Series Editions</h3>
+            <div id="series-editions" class="edition-grid"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <p>Powered by the Kimmane Golf Terrain tournament committee.</p>
+      </div>
+    </footer>
+
+    <script src="/series.js"></script>
+  </body>
+</html>
