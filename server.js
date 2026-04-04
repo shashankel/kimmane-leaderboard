@@ -149,6 +149,7 @@ const tournamentBySeries = db.prepare(
    WHERE tournaments.series_id = ?
    ORDER BY tournaments.start_date ASC, tournaments.created_at ASC`
 );
+const tournamentDelete = db.prepare("DELETE FROM tournaments WHERE id = ?");
 const tournamentUpdateCover = db.prepare(
   "UPDATE tournaments SET cover_image = ? WHERE id = ?"
 );
@@ -595,6 +596,32 @@ app.patch("/api/tournaments/:id", requireAdmin, (req, res) => {
   );
   const updated = tournamentById.get(req.params.id);
   return res.json({ tournament: mapTournamentRow(updated) });
+});
+
+app.delete("/api/tournaments/:id", requireAdmin, (req, res) => {
+  const tournament = tournamentById.get(req.params.id);
+  if (!tournament) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+
+  const photos = photoListByTournament.all(req.params.id);
+  const results = resultListByTournament.all(req.params.id);
+  const filePaths = new Set();
+
+  if (tournament.cover_image) {
+    filePaths.add(tournament.cover_image);
+  }
+  photos.forEach((photo) => filePaths.add(photo.image_path));
+  results.forEach((result) => {
+    if (result.first_photo) filePaths.add(result.first_photo);
+    if (result.second_photo) filePaths.add(result.second_photo);
+    if (result.third_photo) filePaths.add(result.third_photo);
+  });
+
+  filePaths.forEach((imagePath) => removeUploadedFile(imagePath));
+  tournamentDelete.run(req.params.id);
+
+  return res.json({ ok: true });
 });
 
 app.post("/api/series", requireAdmin, (req, res) => {

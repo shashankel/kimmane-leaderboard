@@ -29,6 +29,17 @@ const tournamentDescriptionInput = document.getElementById(
 const tournamentError = document.getElementById("tournament-error");
 const tournamentSelect = document.getElementById("tournament-select");
 const tournamentSummary = document.getElementById("tournament-summary");
+const tournamentUpdateForm = document.getElementById("tournament-update-form");
+const tournamentUpdateName = document.getElementById("tournament-update-name");
+const tournamentUpdateStart = document.getElementById("tournament-update-start");
+const tournamentUpdateEnd = document.getElementById("tournament-update-end");
+const tournamentUpdateDescription = document.getElementById(
+  "tournament-update-description"
+);
+const seriesSelectUpdate = document.getElementById("series-select-update");
+const editionLabelUpdate = document.getElementById("edition-label-update");
+const tournamentUpdateError = document.getElementById("tournament-update-error");
+const tournamentDeleteButton = document.getElementById("tournament-delete");
 
 const photoForm = document.getElementById("photo-form");
 const photoInput = document.getElementById("photo-input");
@@ -229,16 +240,19 @@ async function loadTournaments() {
 
 function renderSeriesSelect() {
   seriesSelectInput.innerHTML = "";
+  seriesSelectUpdate.innerHTML = "";
   const standaloneOption = document.createElement("option");
   standaloneOption.value = "";
   standaloneOption.textContent = "Standalone tournament";
   seriesSelectInput.appendChild(standaloneOption);
+  seriesSelectUpdate.appendChild(standaloneOption.cloneNode(true));
 
   series.forEach((item) => {
     const option = document.createElement("option");
     option.value = item.id;
     option.textContent = item.name;
     seriesSelectInput.appendChild(option);
+    seriesSelectUpdate.appendChild(option.cloneNode(true));
   });
 }
 
@@ -254,6 +268,8 @@ async function loadTournamentDetails(tournamentId) {
     renderTournamentSummary(null);
     renderPhotos([]);
     renderResults([]);
+    tournamentUpdateForm.reset();
+    tournamentUpdateForm.classList.add("hidden");
     return;
   }
   const response = await fetch(`/api/tournaments/${tournamentId}`);
@@ -261,6 +277,13 @@ async function loadTournamentDetails(tournamentId) {
   renderTournamentSummary(payload.tournament);
   renderPhotos(payload.photos || []);
   renderResults(payload.results || []);
+  tournamentUpdateForm.classList.remove("hidden");
+  tournamentUpdateName.value = payload.tournament.name || "";
+  tournamentUpdateStart.value = payload.tournament.startDate || "";
+  tournamentUpdateEnd.value = payload.tournament.endDate || "";
+  tournamentUpdateDescription.value = payload.tournament.description || "";
+  editionLabelUpdate.value = payload.tournament.editionLabel || "";
+  seriesSelectUpdate.value = payload.tournament.seriesId || "";
 }
 
 async function login(username, password) {
@@ -328,6 +351,63 @@ tournamentForm.addEventListener("submit", async (event) => {
   } catch (error) {
     if (error.message === "unauthorized") return;
     setFormError(tournamentError, error.message);
+  }
+});
+
+tournamentUpdateForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  setFormError(tournamentUpdateError, "");
+  if (!ensureActiveTournament()) return;
+  if (!tournamentUpdateName.value.trim()) {
+    setFormError(tournamentUpdateError, "Tournament name is required.");
+    return;
+  }
+  try {
+    const response = await apiRequest(`/api/tournaments/${activeTournamentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: tournamentUpdateName.value.trim(),
+        seriesId: seriesSelectUpdate.value || null,
+        editionLabel: editionLabelUpdate.value.trim(),
+        startDate: tournamentUpdateStart.value,
+        endDate: tournamentUpdateEnd.value,
+        description: tournamentUpdateDescription.value.trim(),
+      }),
+    });
+    if (!response.ok) {
+      const payload = await response.json();
+      throw new Error(payload.error || "Unable to update tournament.");
+    }
+    await loadTournaments();
+    setStatus("Tournament updated.");
+  } catch (error) {
+    if (error.message === "unauthorized") return;
+    setFormError(tournamentUpdateError, error.message);
+  }
+});
+
+tournamentDeleteButton.addEventListener("click", async () => {
+  if (!ensureActiveTournament()) return;
+  const tournament = tournaments.find((item) => item.id === activeTournamentId);
+  const name = tournament?.name || "this tournament";
+  const confirmed = window.confirm(
+    `Delete ${name} and all its results/photos? This cannot be undone.`
+  );
+  if (!confirmed) return;
+  try {
+    const response = await apiRequest(`/api/tournaments/${activeTournamentId}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      const payload = await response.json();
+      throw new Error(payload.error || "Unable to delete tournament.");
+    }
+    await loadTournaments();
+    setStatus("Tournament deleted.");
+  } catch (error) {
+    if (error.message === "unauthorized") return;
+    setStatus(error.message, true);
   }
 });
 

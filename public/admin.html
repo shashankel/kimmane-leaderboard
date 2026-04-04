@@ -149,6 +149,50 @@
           <div class="card section-spacer">
             <div class="card__header">
               <div>
+                <h3>Update Tournament Details</h3>
+                <p class="muted">Rename or update the selected tournament.</p>
+              </div>
+            </div>
+            <form id="tournament-update-form" class="form hidden">
+              <div class="form__grid">
+                <label class="form__field">
+                  <span>Tournament name</span>
+                  <input id="tournament-update-name" required />
+                </label>
+                <label class="form__field">
+                  <span>Series (optional)</span>
+                  <select id="series-select-update"></select>
+                </label>
+                <label class="form__field">
+                  <span>Edition label</span>
+                  <input id="edition-label-update" placeholder="e.g. Round 1, Feb 2026" />
+                </label>
+                <label class="form__field">
+                  <span>Start date</span>
+                  <input id="tournament-update-start" type="date" />
+                </label>
+                <label class="form__field">
+                  <span>End date</span>
+                  <input id="tournament-update-end" type="date" />
+                </label>
+                <label class="form__field">
+                  <span>Description</span>
+                  <textarea id="tournament-update-description" rows="3"></textarea>
+                </label>
+              </div>
+              <div class="form__actions">
+                <button class="btn btn--primary" type="submit">Update tournament</button>
+                <button class="btn btn--danger" type="button" id="tournament-delete">
+                  Delete tournament
+                </button>
+                <p id="tournament-update-error" class="form__error" role="alert"></p>
+              </div>
+            </form>
+          </div>
+
+          <div class="card section-spacer">
+            <div class="card__header">
+              <div>
                 <h3>Upload Tournament Photos</h3>
                 <p class="muted">Add a gallery or cover image.</p>
               </div>
