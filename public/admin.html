@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kimmane Tournament Admin</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header__content">
+        <div class="brand">
+          <span class="brand__label">Kimmane Golf Terrain</span>
+          <span class="brand__title">Tournament Admin</span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="section">
+        <div class="container card" id="login-card">
+          <h2>Admin Login</h2>
+          <p class="muted">
+            Only authorised committee members can update the results.
+          </p>
+          <form id="login-form" class="form">
+            <div class="form__grid">
+              <label class="form__field">
+                <span>Username</span>
+                <input id="username-input" name="username" autocomplete="username" />
+              </label>
+              <label class="form__field">
+                <span>Password</span>
+                <input
+                  id="password-input"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                />
+              </label>
+            </div>
+            <div class="form__actions">
+              <button class="btn btn--primary" type="submit">Sign in</button>
+              <p id="login-error" class="form__error" role="alert"></p>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="section hidden" id="admin-panel">
+        <div class="container">
+          <div class="card panel-header">
+            <div>
+              <h2>Welcome, committee admin</h2>
+              <p class="muted">Create tournaments, upload photos, and publish results.</p>
+            </div>
+            <button class="btn btn--ghost" id="logout-button">Log out</button>
+          </div>
+
+          <div class="card section-spacer">
+            <div class="card__header">
+              <div>
+                <h3>Create a Tournament Series</h3>
+                <p class="muted">Add a multi-edition series with a leaderboard.</p>
+              </div>
+            </div>
+            <form id="series-form" class="form">
+              <div class="form__grid">
+                <label class="form__field">
+                  <span>Series name</span>
+                  <input id="series-name-input" required />
+                </label>
+                <label class="form__field">
+                  <span>Start date</span>
+                  <input id="series-start-input" type="date" />
+                </label>
+                <label class="form__field">
+                  <span>End date</span>
+                  <input id="series-end-input" type="date" />
+                </label>
+                <label class="form__field">
+                  <span>Description</span>
+                  <textarea id="series-description-input" rows="3"></textarea>
+                </label>
+              </div>
+              <div class="form__actions">
+                <button class="btn btn--primary" type="submit">Create series</button>
+                <p id="series-error" class="form__error" role="alert"></p>
+              </div>
+            </form>
+          </div>
+
+          <div class="card section-spacer">
+            <div class="card__header">
+              <div>
+                <h3>Create a Tournament</h3>
+                <p class="muted">Add a new event to publish results.</p>
+              </div>
+            </div>
+            <form id="tournament-form" class="form">
+              <div class="form__grid">
+                <label class="form__field">
+                  <span>Tournament name</span>
+                  <input id="tournament-name-input" required />
+                </label>
+                <label class="form__field">
+                  <span>Series (optional)</span>
+                  <select id="series-select-input"></select>
+                </label>
+                <label class="form__field">
+                  <span>Edition label</span>
+                  <input id="edition-label-input" placeholder="e.g. Round 1, Feb 2026" />
+                </label>
+                <label class="form__field">
+                  <span>Start date</span>
+                  <input id="tournament-start-input" type="date" />
+                </label>
+                <label class="form__field">
+                  <span>End date</span>
+                  <input id="tournament-end-input" type="date" />
+                </label>
+                <label class="form__field">
+                  <span>Description</span>
+                  <textarea id="tournament-description-input" rows="3"></textarea>
+                </label>
+              </div>
+              <div class="form__actions">
+                <button class="btn btn--primary" type="submit">Create tournament</button>
+                <p id="tournament-error" class="form__error" role="alert"></p>
+              </div>
+            </form>
+          </div>
+
+          <div class="card section-spacer">
+            <div class="card__header">
+              <div>
+                <h3>Manage Tournaments</h3>
+                <p class="muted">Select the tournament you want to update.</p>
+              </div>
+              <label class="filter">
+                <span>Active tournament</span>
+                <select id="tournament-select"></select>
+              </label>
+            </div>
+            <p id="tournament-summary" class="muted"></p>
+          </div>
+
+          <div class="card section-spacer">
+            <div class="card__header">
+              <div>
+                <h3>Update Tournament Details</h3>
+                <p class="muted">Rename or update the selected tournament.</p>
+              </div>
+            </div>
+            <form id="tournament-update-form" class="form hidden">
+              <div class="form__grid">
+                <label class="form__field">
+                  <span>Tournament name</span>
+                  <input id="tournament-update-name" required />
+                </label>
+                <label class="form__field">
+                  <span>Series (optional)</span>
+                  <select id="series-select-update"></select>
+                </label>
+                <label class="form__field">
+                  <span>Edition label</span>
+                  <input id="edition-label-update" placeholder="e.g. Round 1, Feb 2026" />
+                </label>
+                <label class="form__field">
+                  <span>Start date</span>
+                  <input id="tournament-update-start" type="date" />
+                </label>
+                <label class="form__field">
+                  <span>End date</span>
+                  <input id="tournament-update-end" type="date" />
+                </label>
+                <label class="form__field">
+                  <span>Description</span>
+                  <textarea id="tournament-update-description" rows="3"></textarea>
+                </label>
+              </div>
+              <div class="form__actions">
+                <button class="btn btn--primary" type="submit">Update tournament</button>
+                <button class="btn btn--danger" type="button" id="tournament-delete">
+                  Delete tournament
+                </button>
+                <p id="tournament-update-error" class="form__error" role="alert"></p>
+              </div>
+            </form>
+          </div>
+
+          <div class="card section-spacer">
+            <div class="card__header">
+              <div>
+                <h3>Upload Tournament Photos</h3>
+                <p class="muted">Add a gallery or cover image.</p>
+              </div>
+            </div>
+            <form id="photo-form" class="form">
+              <div class="form__grid">
+                <label class="form__field">
+                  <span>Photo</span>
+                  <input id="photo-input" type="file" accept="image/*" />
+                </label>
+                <label class="form__field">
+                  <span>Caption</span>
+                  <input id="photo-caption-input" placeholder="Optional caption" />
+                </label>
+                <label class="form__field checkbox-field">
+                  <span>Set as cover image</span>
+                  <input id="photo-cover-input" type="checkbox" />
+                </label>
+              </div>
+              <div class="form__actions">
+                <button class="btn btn--primary" type="submit">Upload photo</button>
+                <p id="photo-error" class="form__error" role="alert"></p>
+              </div>
+            </form>
+            <div id="photo-grid" class="photo-grid section-spacer"></div>
+          </div>
+
+          <div class="card section-spacer">
+            <div class="card__header">
+              <div>
+                <h3>Add Category Results</h3>
+                <p class="muted">Upload winner photos for each category.</p>
+              </div>
+            </div>
+            <form id="result-form" class="form">
+              <div class="form__grid">
+                <label class="form__field">
+                  <span>Category</span>
+                  <input id="category-input" list="category-options" required />
+                </label>
+                <label class="form__field">
+                  <span>Event date</span>
+                  <input id="event-date-input" type="date" />
+                </label>
+                <label class="form__field">
+                  <span>1st place name</span>
+                  <input id="first-input" required />
+                </label>
+                <label class="form__field">
+                  <span>1st place photo</span>
+                  <input id="first-photo-input" type="file" accept="image/*" />
+                </label>
+                <label class="form__field">
+                  <span>2nd place name</span>
+                  <input id="second-input" required />
+                </label>
+                <label class="form__field">
+                  <span>2nd place photo</span>
+                  <input id="second-photo-input" type="file" accept="image/*" />
+                </label>
+                <label class="form__field">
+                  <span>3rd place name</span>
+                  <input id="third-input" required />
+                </label>
+                <label class="form__field">
+                  <span>3rd place photo</span>
+                  <input id="third-photo-input" type="file" accept="image/*" />
+                </label>
+              </div>
+              <datalist id="category-options">
+                <option value="Net Stroke Play"></option>
+                <option value="Stable Ford"></option>
+              </datalist>
+              <div class="form__actions">
+                <button class="btn btn--primary" type="submit">Publish results</button>
+                <button class="btn btn--ghost" type="button" id="reset-form">
+                  Clear
+                </button>
+                <p id="form-error" class="form__error" role="alert"></p>
+              </div>
+            </form>
+          </div>
+
+          <div class="card section-spacer">
+            <div class="card__header">
+              <div>
+                <h3>Published Results</h3>
+                <p class="muted">Remove or review results.</p>
+              </div>
+            </div>
+            <div class="table-wrapper">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Date</th>
+                    <th>1st</th>
+                    <th>2nd</th>
+                    <th>3rd</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="results-table"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <p id="admin-status" class="muted small"></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <p>Private admin access for Kimmane Golf Terrain.</p>
+      </div>
+    </footer>
+
+    <script src="/admin.js"></script>
+  </body>
+</html>

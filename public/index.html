@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kimmane Golf Terrain Tournaments</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header__content">
+        <div class="brand">
+          <span class="brand__label">Kimmane Golf Terrain</span>
+          <span class="brand__title">Tournament Results</span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container hero__content">
+          <p class="eyebrow">Tournament highlights &amp; winner spotlights</p>
+          <h1>Celebrate every tournament at Kimmane</h1>
+          <p>
+            Browse recent tournaments, review category winners, and relive the
+            best moments through photo galleries.
+          </p>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="card__header">
+            <div>
+              <h2>Single Tournaments</h2>
+              <p class="muted">Standalone tournaments with their own results page.</p>
+            </div>
+          </div>
+          <div id="tournament-empty" class="muted hidden">
+            No standalone tournaments have been published yet.
+          </div>
+          <div id="tournament-list" class="tournament-grid"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="card__header">
+            <div>
+              <h2>Tournament Series</h2>
+              <p class="muted">
+                Series leaderboards track points across multiple editions.
+              </p>
+            </div>
+          </div>
+          <div id="series-empty" class="muted hidden">
+            No tournament series have been published yet.
+          </div>
+          <div id="series-list" class="tournament-grid"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <p>Powered by the Kimmane Golf Terrain tournament committee.</p>
+      </div>
+    </footer>
+
+    <script src="/home.js"></script>
+  </body>
+</html>

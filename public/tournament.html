@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kimmane Tournament</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header__content">
+        <div class="brand">
+          <span class="brand__label">Kimmane Golf Terrain</span>
+          <span class="brand__title">Tournament Results</span>
+        </div>
+        <nav class="header__nav">
+          <a class="nav-link" href="/">All Tournaments</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container hero__content">
+          <p class="eyebrow" id="tournament-series"></p>
+          <h1 id="tournament-name">Tournament</h1>
+          <p id="tournament-dates"></p>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container card">
+          <p id="tournament-description" class="muted"></p>
+          <div class="detail-grid">
+            <div>
+              <img
+                id="tournament-cover"
+                class="cover-image hidden"
+                alt="Tournament cover"
+              />
+            </div>
+            <div>
+              <h3>Category Results</h3>
+              <div id="tournament-results" class="results-grid"></div>
+            </div>
+          </div>
+
+          <div class="section-spacer">
+            <h3>Photo Gallery</h3>
+            <div id="tournament-photos" class="photo-grid"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <p>Powered by the Kimmane Golf Terrain tournament committee.</p>
+      </div>
+    </footer>
+
+    <script src="/tournament.js"></script>
+  </body>
+</html>
